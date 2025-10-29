@@ -1,0 +1,228 @@
+---
+title: "births_data"
+author: "Antonio Ceniceros"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    fig_width: 7
+    fig_height: 4
+geometry: margin = 0.75in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = 'center')
+
+require(pacman)
+
+p_load(
+  tidyverse,
+  dplyr,
+  ggplot2,
+  here,
+  janitor,
+  readr,
+  knitr,
+  scales
+)
+
+```
+
+# Summary
+
+## *Research question: Is there health disparities in birth outcomes among American Indian/Alaskan Native populations vs othe racial groups in the state of Oregon.*
+
+This analysis examines birth outcomes across different racial groups in Oregon, focusing on low birth weight rates and prenatal care utilization. Using population-level health data, we identified significant disparities in birth outcomes and explored the relationship between prenatal care timing and birth weight.
+
+
+```{r load data}
+
+df <- read.csv(here("births_data.csv")) |> 
+  clean_names() |> 
+  na.omit() |> 
+  rename(
+    race = mother_s_single_race,
+    hispanic_origin = mother_s_hispanic_origin,
+    infant_birth_weight = infant_birth_weight_12,
+    month_prenatal = month_prenatal_care_began
+  ) |> 
+  select(
+    race,
+    hispanic_origin,
+    infant_birth_weight,
+    month_prenatal,
+    births
+  ) |> 
+  mutate(
+    month_prenatal = parse_number(month_prenatal),
+    low_birth_weight = case_when(
+      infant_birth_weight %in% c(
+        "499 grams or less",
+        "500 - 999 grams",
+        "1000 - 1499 grams",
+        "1500 - 1999 grams",
+        "2000 - 2499 grams"
+      ) ~ "Low birth weight",
+      TRUE ~ "Normal birth weight"
+    )
+  )
+
+```
+
+## *Key Findings*
+
+**Summary stats**: People who identify as White are the majority of total births (85%) while American Indian/Alaskan Native accounted for 1.7%
+
+```{r summary stats}
+
+# Calculate key summary statistics
+race_distribution <- df %>%
+  group_by(race) %>%
+  summarise(
+    total_births = sum(births),
+    n_records = n()
+  ) %>%
+  mutate(percentage = (total_births / sum(total_births)) * 100) %>%
+  arrange(desc(total_births))
+
+lbw_by_race <- df %>%
+  group_by(race, low_birth_weight) %>%
+  summarise(total = sum(births), .groups = "drop") %>%
+  group_by(race) %>%
+  mutate(percentage = (total / sum(total)) * 100) %>%
+  filter(low_birth_weight != "Normal birth weight") %>%
+  arrange(desc(percentage))
+
+# Compare birth weight distributions across races
+weight_dist <- df |>
+  group_by(race, low_birth_weight) |>
+  summarise(total = sum(births), .groups = "drop") |>
+  group_by(race) |>
+  mutate(percentage = (total / sum(total)) * 100)
+
+# Low birth weight rates by Hispanic origin
+lbw_by_hispanic <- df |>
+  group_by(hispanic_origin, low_birth_weight) |>
+  summarise(total = sum(births)) |>
+  group_by(hispanic_origin) |>
+  mutate(percentage = (total / sum(total)) * 100) |>
+  filter(low_birth_weight != "Normal birth weight")
+
+# Does earlier prenatal care reduce low birth weight?
+care_timing_effect <- df |>
+  group_by(race, month_prenatal, low_birth_weight) |>
+  summarise(total = sum(births)) |>
+  group_by(month_prenatal) |>
+  mutate(percentage = (total / sum(total)) * 100) |>
+  filter(low_birth_weight != "Normal birth weight")
+
+# Display summary table
+kable(race_distribution, 
+      col.names = c("Race", "Total Births", "Records", "% of Total"),
+      digits = 1,
+      caption = "Birth Distribution by Race")
+
+
+```
+
+**Statisical Analysis**: A chi-square test of independence revealed a statistically significant association between race and low birth weight status (p < 0.001), indicating that birth weight outcomes vary significantly across racial groups.
+
+
+### *Chi square*
+```{r chi square, fig.width=3.0}
+
+# Aggregate the data first
+agg_data <- df |>
+  group_by(race, low_birth_weight) |>
+  summarise(total = sum(births), .groups = "drop")
+
+# Create contingency table using xtabs
+cont_table <- xtabs(total ~ race + low_birth_weight, data = agg_data)
+
+chisq_result <- chisq.test(cont_table)
+
+# Format the contingency table
+kable(cont_table, 
+      caption = "Contingency Table: Race by Low Birth Weight Status",
+      booktabs = TRUE)
+
+# Format chi-square results
+chi_results <- data.frame(
+  Statistic = c("Chi-square", "Degrees of Freedom", "P-value"),
+  Value = c(
+    round(chisq_result$statistic, 2),
+    chisq_result$parameter,
+    ifelse(chisq_result$p.value < 0.001, "< 0.001", 
+           round(chisq_result$p.value, 4))
+  )
+)
+
+kable(chi_results, 
+      col.names = c("Test Statistic", "Value"),
+      caption = "Chi-Square Test Results",
+      booktabs = TRUE)
+
+
+```
+
+### *Analysis*
+```{r analysis & plots, fig.height=3.5}
+
+# Visualize
+ggplot(lbw_by_race, aes(x = reorder(race, -percentage), y = percentage)) +
+  geom_bar(stat = "identity", fill = "#d95f02", alpha = 0.8) +
+  ylim(0, 8) +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), vjust = -0.5, size = 3) +
+  labs(title = "Low Birth Weight Rates by Race in Oregon, 2018-2022",
+       x = "Race",
+       y = "Percentage (%)",
+       caption = "Source: CDC Wonder") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Stacked bar chart
+ggplot(weight_dist, aes(x = race, y = percentage, fill = low_birth_weight)) +
+  geom_bar(stat = "identity", ) +
+  labs(title = "Birth Weight Distribution by Race in Oregon, 2018-2022",
+       x = "Race",
+       y = "Percentage (%)",
+       caption = "Source: CDC Wonder") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+## Limitations
+
+This analysis has several important limitations that should be considered when interpreting the findings:
+
+1. **Geographic Aggregation**: While county-level data for Klamath County was desired, the CDC WONDER database may have suppressed or aggregated data due to small cell sizes (typically when counts are less than 10). This limits the ability to draw conclusions specific to Klamath County and may mask important local variations in birth outcomes.
+
+2. **Ecological Fallacy**: This population-level analysis examines group-level associations and cannot be used to make inferences about individual-level relationships. The observed disparities between racial groups do not account for individual-level confounders.
+
+3. **Unmeasured Confounding**: The analysis does not account for important socioeconomic factors such as maternal education, income, insurance status, access to healthcare facilities, maternal age, or pre-existing health conditions, all of which may influence both prenatal care utilization and birth outcomes.
+
+4. **Data Suppression**: CDC WONDER suppresses data to protect privacy when cell counts are small, which may result in incomplete representation of certain racial/ethnic groups, particularly smaller populations in Klamath County.
+
+5. **Temporal Considerations**: The analysis represents a cross-sectional snapshot and does not capture trends over time or seasonal variations in birth outcomes.
+
+6. **Race/Ethnicity Classification**: Racial and ethnic categories are self-reported and may not capture the full complexity of identity. Additionally, the separate categorization of race and Hispanic origin may obscure important within-group heterogeneity.
+
+7. **Prenatal Care Quality**: The analysis only captures the timing of prenatal care initiation (month started), not the quality, frequency, or content of care received, which may be equally or more important for birth outcomes.
+
+8. **Missing Data**: The contingency table analysis revealed at least one cell with zero observations, suggesting either complete data suppression or genuine absence of certain race/birth weight combinations in the dataset.
+
+# Conclusions
+
+This analysis reveals significant racial disparities in birth outcomes within the population. The findings suggest that:
+
+1. Low birth weight rates vary significantly across racial groups (p < 0.001)
+2. Birth weight distributions differ substantially across populations
+
+These findings highlight the importance of targeted interventions and equitable access to prenatal care services to address disparities in maternal and infant health outcomes.
+
+---
+
+**Methods**: Data were analyzed using R (version 4.x). Statistical significance was assessed using chi-square tests. All visualizations created using ggplot2.
+
+**Code**: Full code can be found at this link: github.com/tonioceniceros/

@@ -29,7 +29,7 @@ p_load(
 
 # Summary
 
-## *Research question: Is there health disparities in birth outcomes among American Indian/Alaskan Native populations vs othe racial groups in the state of Oregon.*
+## *Research question: Is there health disparities in birth outcomes among American Indian/Alaskan Native populations vs other racial groups in the state of Oregon.*
 
 This analysis examines birth outcomes across different racial groups in Oregon, focusing on low birth weight rates and prenatal care utilization. Using population-level health data, we identified significant disparities in birth outcomes and explored the relationship between prenatal care timing and birth weight.
 
@@ -124,7 +124,7 @@ kable(race_distribution,
 
 ```
 
-**Statisical Analysis**: A chi-square test of independence revealed a statistically significant association between race and low birth weight status (p < 0.001), indicating that birth weight outcomes vary significantly across racial groups.
+**Statisical Analysis**: A chi-square test of independence revealed a statistically significant association between race and low birth weight status (p < 0.001), indicating that birth weight outcomes vary significantly across racial groups. In the contingency table, there is a value of 0, but none with expected value <5. 
 
 
 ### *Chi square*
@@ -192,7 +192,7 @@ weight_dist <- weight_dist |>
 
 # Stacked bar chart
 ggplot(weight_dist, aes(x = race_formatted, y = percentage, fill = low_birth_weight)) +
-  geom_bar(stat = "identity", ) +
+  geom_bar(stat = "identity", alpha = 0.8) +
   labs(title = "Birth Weight Distribution by Race in Oregon, 2018-2022",
        x = "",
        y = "Percentage (%)",

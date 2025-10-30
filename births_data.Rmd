@@ -1,5 +1,5 @@
 ---
-title: "births_data"
+title: "Oregon Birth Data"
 author: "Antonio Ceniceros"
 date: "`r Sys.Date()`"
 output:
@@ -167,62 +167,72 @@ kable(chi_results,
 ### *Analysis*
 ```{r analysis & plots, fig.height=3.5}
 
+# Convert to factor with correct order
+lbw_by_race <- lbw_by_race |>
+  mutate(race_formatted = str_replace(race, " or ", "\nor "))
+
 # Visualize
-ggplot(lbw_by_race, aes(x = reorder(race, -percentage), y = percentage)) +
+ggplot(lbw_by_race, aes(x = reorder(race_formatted, -percentage), y = percentage)) +
   geom_bar(stat = "identity", fill = "#d95f02", alpha = 0.8) +
   ylim(0, 8) +
   geom_text(aes(label = sprintf("%.1f%%", percentage)), vjust = -0.5, size = 3) +
   labs(title = "Low Birth Weight Rates by Race in Oregon, 2018-2022",
-       x = "Race",
+       x = "",
        y = "Percentage (%)",
        caption = "Source: CDC Wonder") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+
+# Convert to factor with correct order
+weight_dist <- weight_dist |>
+  mutate(low_birth_weight = factor(low_birth_weight),
+         # Add line breaks to long race names
+         race_formatted = str_replace(race, " or ", "\nor "))
 
 # Stacked bar chart
-ggplot(weight_dist, aes(x = race, y = percentage, fill = low_birth_weight)) +
+ggplot(weight_dist, aes(x = race_formatted, y = percentage, fill = low_birth_weight)) +
   geom_bar(stat = "identity", ) +
   labs(title = "Birth Weight Distribution by Race in Oregon, 2018-2022",
-       x = "Race",
+       x = "",
        y = "Percentage (%)",
        caption = "Source: CDC Wonder") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
 
 ```
 
 ## Limitations
 
-This analysis has several important limitations that should be considered when interpreting the findings:
+This analysis has several important limitations:
 
-1. **Geographic Aggregation**: While county-level data for Klamath County was desired, the CDC WONDER database may have suppressed or aggregated data due to small cell sizes (typically when counts are less than 10). This limits the ability to draw conclusions specific to Klamath County and may mask important local variations in birth outcomes.
+1. **Geographic Scope**: Data were originally requested for Klamath County; however, due to CDC WONDER's data suppression rules for small populations, this analysis utilized statewide Oregon data. This geographic aggregation may mask important county-level variations and limits the applicability of findings to Klamath County specifically.
 
-2. **Ecological Fallacy**: This population-level analysis examines group-level associations and cannot be used to make inferences about individual-level relationships. The observed disparities between racial groups do not account for individual-level confounders.
+2. **Ecological Fallacy**: Population-level associations cannot be used to infer individual-level relationships. Observed disparities do not account for individual confounders.
 
-3. **Unmeasured Confounding**: The analysis does not account for important socioeconomic factors such as maternal education, income, insurance status, access to healthcare facilities, maternal age, or pre-existing health conditions, all of which may influence both prenatal care utilization and birth outcomes.
+3. **Unmeasured Confounding**: Important factors such as maternal education, income, insurance status, healthcare access, maternal age, and pre-existing conditions are not included in this analysis.
 
-4. **Data Suppression**: CDC WONDER suppresses data to protect privacy when cell counts are small, which may result in incomplete representation of certain racial/ethnic groups, particularly smaller populations in Klamath County.
+4. **Data Suppression**: CDC WONDER suppresses data for privacy protection, potentially resulting in incomplete representation of smaller racial/ethnic populations, particularly affecting American Indian/Alaska Native populations.
 
-5. **Temporal Considerations**: The analysis represents a cross-sectional snapshot and does not capture trends over time or seasonal variations in birth outcomes.
+5. **Prenatal Care Measurement**: Analysis captures only timing of care initiation, not quality, frequency, or content of prenatal services received.
 
-6. **Race/Ethnicity Classification**: Racial and ethnic categories are self-reported and may not capture the full complexity of identity. Additionally, the separate categorization of race and Hispanic origin may obscure important within-group heterogeneity.
+6. **Race/Ethnicity Classification**: Self-reported categories may not capture the full complexity of identity and within-group heterogeneity. For Native American populations specifically, this classification does not account for tribal affiliation, urban versus reservation residence, or degree of connection to traditional healthcare systems.
 
-7. **Prenatal Care Quality**: The analysis only captures the timing of prenatal care initiation (month started), not the quality, frequency, or content of care received, which may be equally or more important for birth outcomes.
+## Conclusions
 
-8. **Missing Data**: The contingency table analysis revealed at least one cell with zero observations, suggesting either complete data suppression or genuine absence of certain race/birth weight combinations in the dataset.
-
-# Conclusions
-
-This analysis reveals significant racial disparities in birth outcomes within the population. The findings suggest that:
+This statewide analysis of Oregon birth outcomes reveals significant racial disparities in birth outcomes. The findings suggest that:
 
 1. Low birth weight rates vary significantly across racial groups (p < 0.001)
 2. Birth weight distributions differ substantially across populations
 
-These findings highlight the importance of targeted interventions and equitable access to prenatal care services to address disparities in maternal and infant health outcomes.
+While statewide data provide important insights into population-level health disparities, the inability to access county-specific data limits conclusions about Klamath County specifically. The geographic aggregation is particularly problematic for understanding American Indian/Alaska Native birth outcomes, as these populations may have unique health service utilization patterns and risk factors that vary by tribal affiliation and geographic location.
+
+**Recommendations for Future Research:**
+
+To better understand birth outcome disparities, particularly for Native American populations, future studies should: (1) partner with Tribal Health Organizations and Tribal Epidemiology Centers for more detailed community-specific data; (2) incorporate cultural factors and assess specific healthcare access barriers including geographic isolation, transportation, and culturally competent care availability; (3) examine differences between urban and reservation populations; and (4) employ Community-Based Participatory Research approaches that center Native voices and ensure findings benefit the communities studied. These approaches would provide more nuanced understanding and inform targeted, culturally appropriate interventions.
 
 ---
 
-**Methods**: Data were analyzed using R (version 4.x). Statistical significance was assessed using chi-square tests. All visualizations created using ggplot2.
+**Methods**: Data were analyzed using R (version 4.2.1). Statistical significance was assessed using chi-square tests. All visualizations created using ggplot2.
 
-**Code**: Full code can be found at this link: github.com/tonioceniceros/
+**Code**: Full code can be found at this link: https://github.com/tonioceniceros/birth_data/blob/main/births_data.Rmd
